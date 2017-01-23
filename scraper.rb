@@ -110,6 +110,10 @@ def fetch_details(a)
     'heart_worm_treated' => bool(page.search('dl.pets-details dd.heart_worm_treated').text),
     'fostered_by'  => page.search('dl.pets-details dd.fostered_by a').first['href'][/(\d+)/, 1].to_i,
     'description'  => ReverseMarkdown.convert(page.search('div.personality').to_s),
+    'state'        => page.search('h4.located_in').text[/^Located in (.+)/, 1],
+    'interstate'   => (!(page.search('h5.interstate').text =~ /^Not available/)).to_s,
+    'times_viewed' => page.search('p.view_count').text[/(\d+)/,1].to_i,
+    'last_updated' => page.search('p.last_updated_at time').first['datetime'],
     'images'       => page.search('#thumbnails > li > a').map {|a| a['href']},
   })
 end
@@ -132,7 +136,6 @@ def main
   puts "### [info] There are #{existing_record_ids.size} existing animal records"
 
   new_animals = all_animals.select {|r| !existing_record_ids.include?(r['link'])}
-  new_animals += ScraperWiki.select('* from data where age is null')
   puts "### [info] There are #{new_animals.size} new animal records"
   # Add more attributes to any new records we've found
   new_animals.each_slice(10) do |slice|
