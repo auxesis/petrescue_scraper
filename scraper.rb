@@ -15,7 +15,7 @@ end
 
 def cache_store(url, content)
   cache_path(url).open('w') {|f| f << content} unless cached?(url)
-  content
+  Nokogiri::HTML(content)
 end
 
 def cached?(url)
