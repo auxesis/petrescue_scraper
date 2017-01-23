@@ -144,7 +144,11 @@ def main
 
     # Then save the animals
     puts "### [info] Saving #{new_animal_slice.size} animal records"
-    ScraperWiki.save_sqlite(%w(link), new_animal_slice)
+    begin
+      ScraperWiki.save_sqlite(%w(link), new_animal_slice)
+    rescue RuntimeError => e
+      binding.pry
+    end
   end
 end
 
