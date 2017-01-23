@@ -94,13 +94,12 @@ def all_animals
     plural   = ActiveSupport::Inflector.pluralize(type)
     singular = ActiveSupport::Inflector.singularize(type)
 
-    puts "[debug] Fetching #{plural} index"
     url  = "https://www.petrescue.com.au/listings/#{type}"
     page = get(url, cache: cache_index?)
     max  = page.search('#main > article > div.pagination.footer-pagination > nav > div.info').first.text.split.last.to_i
 
     animals = (1..max).to_a.map { |i|
-      puts "[debug] Fetching page #{i} of #{max} for #{plural}"
+      puts "[debug] Fetching index: #{plural} #{i} of #{max}"
       url  = "https://www.petrescue.com.au/listings/#{type}?page=#{i}"
       page = get(url, cache: cache_index?)
       extract_listings(page, singular)
