@@ -4,6 +4,7 @@ require 'pry'
 require 'reverse_markdown'
 require 'active_support/inflector'
 require 'nokogiri'
+require 'time'
 
 def cache_path(url)
   base = Pathname.new(__FILE__).parent.join('cache')
@@ -139,6 +140,7 @@ def fetch_details(a)
     'times_viewed' => page.search('p.view_count').text[/(\d+)/,1].to_i,
     'last_updated' => page.search('p.last_updated_at time').first['datetime'],
     'images'       => page.search('#thumbnails > li > a').map {|a| a['href']},
+    'scraped_at'   => Time.now.iso8601,
   })
 end
 
