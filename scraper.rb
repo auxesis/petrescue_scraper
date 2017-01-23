@@ -61,11 +61,19 @@ def extract_listings(page, type)
   end
 end
 
+def species
+  if ENV['MORPH_SPECIES']
+    ENV['MORPH_SPECIES'].split(' ')
+  else
+    %w(dogs cats other)
+  end
+end
+
 def all_animals
   return @animals if @animals
 
-  types = %w(dogs cats other)
-  @animals = types.map {|type|
+  puts "### [debug] Species to fetch: #{species}"
+  @animals = species.map {|type|
     plural   = ActiveSupport::Inflector.pluralize(type)
     singular = ActiveSupport::Inflector.singularize(type)
 
