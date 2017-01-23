@@ -44,12 +44,12 @@ def all_animals
   }.flatten
 end
 
-def existing_record_ids(table='data')
+def existing_record_ids(table='data', id='link')
   @cached ||= {}
   if @cached[table]
     return @cached[table]
   else
-    @cached[table] = ScraperWiki.select("link from #{table}").map {|r| r['link']}
+    @cached[table] = ScraperWiki.select("#{id} from #{table}").map {|r| r[id]}
   end
 rescue SqliteMagic::NoSuchTable
   []
