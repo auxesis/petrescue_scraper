@@ -64,7 +64,8 @@ end
 def all_animals
   return @animals if @animals
 
-  @animals = %w(other cats dogs).map { |type|
+  types = %w(dogs cats other)
+  @animals = types.map {|type|
     plural   = ActiveSupport::Inflector.pluralize(type)
     singular = ActiveSupport::Inflector.singularize(type)
 
@@ -113,6 +114,20 @@ def fetch_details(a)
   })
 end
 
+def save_images(animals)
+  # Save any images that we've picked up by scraping animals
+  images = animals.map { |a|
+    a.delete('images').map {|url|
+      { 'animal_id' => a['link'], 'link' => url }
+    }
+  }.flatten
+
+  new_images = images.select {|r| !existing_record_ids('images').include?(r['link'])}
+  puts "### [info] There are #{new_images.size} new image records"
+  puts "### [info] Saving #{new_images.size} image records"
+  ScraperWiki.save_sqlite(%w(link), new_images, 'images')
+end
+
 def main
   puts "### [info] There are #{existing_record_ids.size} existing animal records"
 
@@ -120,25 +135,14 @@ def main
   new_animals += ScraperWiki.select('* from data where age is null')
   puts "### [info] There are #{new_animals.size} new animal records"
   # Add more attributes to any new records we've found
-  new_animals.map! {|a| fetch_details(a)}
+  new_animals.each_slice(10) do |slice|
+    new_animal_slice = slice.map {|a| fetch_details(a) }
+    save_images(new_animal_slice)
 
-  # Save any images that we've picked up by scraping animals
-  images = new_animals.map { |a|
-    a.delete('images').map {|url|
-      { 'animal_id' => a['link'], 'link' => url }
-    }
-  }.flatten
-
-  puts "### [info] There are #{existing_record_ids('images').size} existing image records"
-  new_images = images.select {|r| !existing_record_ids('images').include?(r['link'])}
-  puts "### [info] There are #{new_images.size} new image records"
-  puts "### [info] Saving #{new_images.size} image records"
-  ScraperWiki.save_sqlite(%w(link), new_images, 'images')
-
-  # Then save the animals
-  puts "### [info] Saving #{new_animals.size} animal records"
-  ScraperWiki.save_sqlite(%w(link), new_animals)
+    # Then save the animals
+    puts "### [info] Saving #{new_animal_slice.size} animal records"
+    ScraperWiki.save_sqlite(%w(link), new_animal_slice)
+  end
 end
 
 main
-
