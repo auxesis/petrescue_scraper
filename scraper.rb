@@ -157,13 +157,17 @@ def save_images(animals)
 end
 
 def main
+  # Scrape the index, work out what the new records are.
   puts "### [info] There are #{existing_record_ids.size} existing animal records"
-
   new_animals = all_animals.select {|r| !existing_record_ids.include?(r['link'])}
   puts "### [info] There are #{new_animals.size} new animal records"
-  # Add more attributes to any new records we've found
+
+  # Work through 10 records at a time to get more details for each record.
+  # This allows the scraper to resume runs and save partial results.
   new_animals.each_slice(10) do |slice|
+    # Add more attributes to any new records we've found.
     new_animal_slice = slice.map {|a| fetch_details(a) }
+    # Extract images we've found when finding details for each record.
     save_images(new_animal_slice)
 
     # Then save the animals
