@@ -3,10 +3,38 @@ require 'mechanize'
 require 'pry'
 require 'reverse_markdown'
 require 'active_support/inflector'
+require 'nokogiri'
+
+def cache_path(url)
+  base = Pathname.new(__FILE__).parent.join('cache')
+  hash = Digest::MD5.hexdigest(url)
+  directory = base.join(hash[0])
+  directory.mkpath unless directory.directory?
+  directory.join(hash[1..-1])
+end
+
+def cache_store(url, content)
+  cache_path(url).open('w') {|f| f << content} unless cached?(url)
+  content
+end
+
+def cached?(url)
+  cache_path(url).exist?
+end
+
+def cache_fetch(url)
+  body = cache_path(url).read
+  Nokogiri::HTML(body)
+end
 
 def get(url)
   @agent ||= Mechanize.new
-  @agent.get(url)
+  if cached?(url)
+    cache_fetch(url)
+  else
+    page = @agent.get(url)
+    cache_store(url, page.body.to_s)
+  end
 end
 
 def extract_listings(page, type)
