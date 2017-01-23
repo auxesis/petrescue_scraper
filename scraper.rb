@@ -69,6 +69,22 @@ def species
   end
 end
 
+def cache_index?
+  if ENV['MORPH_CACHE_INDEX']
+    ENV['MORPH_CACHE_INDEX'] =~ /true/i
+  else
+    true
+  end
+end
+
+def cache_details?
+  if ENV['MORPH_CACHE_DETAILS']
+    ENV['MORPH_CACHE_DETAILS'] =~ /true/i
+  else
+    true
+  end
+end
+
 def all_animals
   return @animals if @animals
 
@@ -79,13 +95,13 @@ def all_animals
 
     puts "### [debug] Fetching #{plural} index"
     url  = "https://www.petrescue.com.au/listings/#{type}"
-    page = get(url)
+    page = get(url, cache: cache_index?)
     max  = page.search('#main > article > div.pagination.footer-pagination > nav > div.info').first.text.split.last.to_i
 
     animals = (1..max).to_a.map { |i|
       puts "### [debug] Fetching page #{i} of #{max} for #{plural}"
       url  = "https://www.petrescue.com.au/listings/#{type}?page=#{i}"
-      page = get(url)
+      page = get(url, cache: cache_index?)
       extract_listings(page, singular)
     }.flatten
   }.flatten
@@ -108,7 +124,7 @@ end
 
 def fetch_details(a)
   puts "### [debug] Fetching page #{a['link']}"
-  page = get(a['link'])
+  page = get(a['link'], cache: cache_details?)
   a.merge({
     'age'          => page.search('dl.pets-details dd.age').text,
     'adoption_fee' => page.search('dl.pets-details dd.adoption_fee').text,
