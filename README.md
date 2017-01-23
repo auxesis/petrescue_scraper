@@ -48,6 +48,10 @@ You can control this behaviour by setting these environment variables:
  - `MORPH_CACHE_INDEX` controls if the index is read from cache. Default is `true`.
  - `MORPH_CACHE_DETAILS` controls if each listing is read from cache. Default is `true`.
 
-These settings are most useful when debugging or testing behaviour locally.
+These settings are most useful when debugging or testing behaviour locally. For example, to use an index cache, but bypass the details cache:
+
+```
+MORPH_CACHE_INDEX=true MORPH_CACHE_DETAILS=false bundle exec ruby scraper.rb
+```
 
 When the scraper is run on Morph, the underlying filesystem is ephemeral on every run. This means that while the scraper caches during its run, all the data is discarded at the end of the run.
