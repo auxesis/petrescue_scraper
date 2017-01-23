@@ -77,6 +77,7 @@ def main
   puts "### [info] There are #{existing_record_ids.size} existing animal records"
 
   new_animals = all_animals.select {|r| !existing_record_ids.include?(r['link'])}
+  new_animals += ScraperWiki.select('* from data where age is null')
   puts "### [info] There are #{new_animals.size} new animal records"
   # Add more attributes to any new records we've found
   new_animals.map! {|a| fetch_details(a)}
