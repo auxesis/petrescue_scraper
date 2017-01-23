@@ -48,15 +48,15 @@ def get(url, opts={})
   end
 end
 
-def extract_listings(page, type)
-  page.search("li.#{type}-listing.listing").map do |listing|
+def extract_listings(page, species)
+  page.search("li.#{species}-listing.listing").map do |listing|
     {
       'name' => listing.search('h4').text.strip,
       'description' => listing.search('div.personality').text,
       'gender' => listing.search('dd.gender').first.text.downcase,
       'breed' => listing.search('dd.breed').first.text,
       'link' => 'https://www.petrescue.com.au' + listing.search('h4 a').first['href'],
-      'type' => type,
+      'species' => species,
       'id'   => listing.search('h4 a').first['href'][/(\d+)$/, 1]
     }
   end
@@ -90,17 +90,17 @@ def all_animals
   return @animals if @animals
 
   puts "[debug] Species to fetch: #{species.join(',')}"
-  @animals = species.map {|type|
-    plural   = ActiveSupport::Inflector.pluralize(type)
-    singular = ActiveSupport::Inflector.singularize(type)
+  @animals = species.map {|species|
+    plural   = ActiveSupport::Inflector.pluralize(species)
+    singular = ActiveSupport::Inflector.singularize(species)
 
-    url  = "https://www.petrescue.com.au/listings/#{type}"
+    url  = "https://www.petrescue.com.au/listings/#{species}"
     page = get(url, cache: cache_index?)
     max  = page.search('#main > article > div.pagination.footer-pagination > nav > div.info').first.text.split.last.to_i
 
     animals = (1..max).to_a.map { |i|
       puts "[debug] Fetching index: #{plural} #{i} of #{max}"
-      url  = "https://www.petrescue.com.au/listings/#{type}?page=#{i}"
+      url  = "https://www.petrescue.com.au/listings/#{species}?page=#{i}"
       page = get(url, cache: cache_index?)
       extract_listings(page, singular)
     }.flatten
