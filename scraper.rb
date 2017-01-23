@@ -27,10 +27,20 @@ def cache_fetch(url)
   Nokogiri::HTML(body)
 end
 
-def get(url)
+def get(url, opts={})
+  options = {
+    :cache => true
+  }.merge!(opts)
   @agent ||= Mechanize.new
-  if cached?(url)
+
+  case
+  # Cache bypass
+  when !options[:cache]
+    page = @agent.get(url)
+  # Cache hit
+  when cached?(url)
     cache_fetch(url)
+  # Cache miss
   else
     page = @agent.get(url)
     cache_store(url, page.body.to_s)
