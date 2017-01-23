@@ -88,7 +88,7 @@ end
 def all_animals
   return @animals if @animals
 
-  puts "### [debug] Species to fetch: #{species}"
+  puts "### [debug] Species to fetch: #{species.join(',')}"
   @animals = species.map {|type|
     plural   = ActiveSupport::Inflector.pluralize(type)
     singular = ActiveSupport::Inflector.singularize(type)
