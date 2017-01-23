@@ -89,18 +89,18 @@ end
 def all_animals
   return @animals if @animals
 
-  puts "### [debug] Species to fetch: #{species.join(',')}"
+  puts "[debug] Species to fetch: #{species.join(',')}"
   @animals = species.map {|type|
     plural   = ActiveSupport::Inflector.pluralize(type)
     singular = ActiveSupport::Inflector.singularize(type)
 
-    puts "### [debug] Fetching #{plural} index"
+    puts "[debug] Fetching #{plural} index"
     url  = "https://www.petrescue.com.au/listings/#{type}"
     page = get(url, cache: cache_index?)
     max  = page.search('#main > article > div.pagination.footer-pagination > nav > div.info').first.text.split.last.to_i
 
     animals = (1..max).to_a.map { |i|
-      puts "### [debug] Fetching page #{i} of #{max} for #{plural}"
+      puts "[debug] Fetching page #{i} of #{max} for #{plural}"
       url  = "https://www.petrescue.com.au/listings/#{type}?page=#{i}"
       page = get(url, cache: cache_index?)
       extract_listings(page, singular)
@@ -124,7 +124,7 @@ def bool(text)
 end
 
 def fetch_details(a)
-  puts "### [debug] Fetching page #{a['link']}"
+  puts "[debug] Fetching page #{a['link']}"
   page = get(a['link'], cache: cache_details?)
   a.merge({
     'age'          => page.search('dl.pets-details dd.age').text,
@@ -153,16 +153,16 @@ def save_images(animals)
   }.flatten
 
   new_images = images.select {|r| !existing_record_ids('images').include?(r['link'])}
-  puts "### [info] There are #{new_images.size} new image records"
-  puts "### [info] Saving #{new_images.size} image records"
+  puts "[info] There are #{new_images.size} new image records"
+  puts "[info] Saving #{new_images.size} image records"
   ScraperWiki.save_sqlite(%w(link), new_images, 'images')
 end
 
 def main
   # Scrape the index, work out what the new records are.
-  puts "### [info] There are #{existing_record_ids.size} existing animal records"
+  puts "[info] There are #{existing_record_ids.size} existing animal records"
   new_animals = all_animals.select {|r| !existing_record_ids.include?(r['link'])}
-  puts "### [info] There are #{new_animals.size} new animal records"
+  puts "[info] There are #{new_animals.size} new animal records"
 
   # Work through 10 records at a time to get more details for each record.
   # This allows the scraper to resume runs and save partial results.
@@ -173,7 +173,7 @@ def main
     save_images(new_animal_slice)
 
     # Then save the animals
-    puts "### [info] Saving #{new_animal_slice.size} animal records"
+    puts "[info] Saving #{new_animal_slice.size} animal records"
     begin
       ScraperWiki.save_sqlite(%w(link), new_animal_slice)
     rescue RuntimeError => e
