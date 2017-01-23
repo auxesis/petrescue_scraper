@@ -182,4 +182,22 @@ def main
   end
 end
 
+def backfill
+  begin
+    ScraperWiki.sqliteexecute('ALTER TABLE data ADD scraped_at')
+  rescue SQLite3::SQLException => e
+    raise e unless e.message == 'duplicate column name: scraped_at'
+  end
+
+  records = ScraperWiki.select('* from data where scraped_at is null')
+  if records.size > 0
+    puts "[info] #{records.size} records to backfill scraped_at"
+    records.each {|r| r['scraped_at'] = Time.now.iso8601}
+    ScraperWiki.save_sqlite(%w(link), records)
+  else
+    puts '[info] No records to backfill scraped_at'
+  end
+end
+
 main
+backfill
