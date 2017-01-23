@@ -68,18 +68,34 @@ def fetch_details(a)
     'wormed'       => bool(page.search('dl.pets-details dd.wormed').text),
     'heart_worm_treated' => bool(page.search('dl.pets-details dd.heart_worm_treated').text),
     'fostered_by'  => page.search('dl.pets-details dd.fostered_by a').first['href'][/(\d+)/, 1].to_i,
-    'description'  => ReverseMarkdown.convert(page.search('div.personality').to_s)
+    'description'  => ReverseMarkdown.convert(page.search('div.personality').to_s),
+    'images'       => page.search('#thumbnails > li > a').map {|a| a['href']},
   })
 end
 
 def main
-  puts "### [info] There are #{existing_record_ids.size} existing animals"
-  new_animals = all_animals.select {|r| !existing_record_ids.include?(r['link'])}
+  puts "### [info] There are #{existing_record_ids.size} existing animal records"
 
-  puts "### [info] There are #{new_animals.size} new records"
+  new_animals = all_animals.select {|r| !existing_record_ids.include?(r['link'])}
+  puts "### [info] There are #{new_animals.size} new animal records"
+  # Add more attributes to any new records we've found
   new_animals.map! {|a| fetch_details(a)}
 
-  puts "### [info] Saving #{new_animals.size} records"
+  # Save any images that we've picked up by scraping animals
+  images = new_animals.map { |a|
+    a.delete('images').map {|url|
+      { 'animal_id' => a['link'], 'link' => url }
+    }
+  }.flatten
+
+  puts "### [info] There are #{existing_record_ids('images').size} existing image records"
+  new_images = images.select {|r| !existing_record_ids('images').include?(r['link'])}
+  puts "### [info] There are #{new_images.size} new image records"
+  puts "### [info] Saving #{new_images.size} image records"
+  ScraperWiki.save_sqlite(%w(link), new_images, 'images')
+
+  # Then save the animals
+  puts "### [info] Saving #{new_animals.size} animal records"
   ScraperWiki.save_sqlite(%w(link), new_animals)
 end
 
