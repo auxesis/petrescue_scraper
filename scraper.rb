@@ -5,6 +5,9 @@ require 'reverse_markdown'
 require 'active_support/inflector'
 require 'nokogiri'
 require 'time'
+require 'addressable'
+require 'json'
+require 'httparty'
 
 def cache_path(url)
   base = Pathname.new(__FILE__).parent.join('cache')
@@ -86,24 +89,58 @@ def cache_details?
   end
 end
 
+module PetRescue
+  class Search
+    include HTTParty
+    base_uri 'www.petrescue.com.au'
+  end
+end
+
+def build_animal_index(species: 'dog')
+  puts "[debug] Building index for #{species}"
+
+  plural   = ActiveSupport::Inflector.pluralize(species).capitalize
+  singular = ActiveSupport::Inflector.singularize(species).capitalize
+
+  base     = 'https://www.petrescue.com.au/listings/ryvuss_data'
+  per_page = 60
+  index    = 0
+  query    = {
+    'q'        => "Species.#{singular}.",
+    'skip'     => index,
+    'per_page' => per_page
+  }
+  url = Addressable::URI.parse(base)
+  url.query_values = query
+
+  response = HTTParty.get(url)
+  max = response['Count']
+
+  urls = index.step(max,per_page).to_a.map do |n|
+    url = Addressable::URI.parse(base)
+    url.query_values = {
+      'q'        => "Species.#{singular}.",
+      'skip'     => n,
+      'per_page' => per_page
+    }
+    url.to_s
+  end
+
+  data = urls.map { |url|
+    puts "[debug] Fetching index: #{url}"
+    HTTParty.get(url)['SearchResults'].map {|animal|
+      { 'link' => "http://www.petrescue.com.au/listings/#{animal['Id']}"}
+    }
+  }.flatten
+  data
+end
+
 def all_animals
   return @animals if @animals
 
   puts "[debug] Species to fetch: #{species.join(',')}"
   @animals = species.map {|species|
-    plural   = ActiveSupport::Inflector.pluralize(species)
-    singular = ActiveSupport::Inflector.singularize(species)
-
-    url  = "https://www.petrescue.com.au/listings/#{species}"
-    page = get(url, cache: cache_index?)
-    max  = page.search('#main > article > div.pagination.footer-pagination > nav > div.info').first.text.split.last.to_i
-
-    animals = (1..max).to_a.map { |i|
-      puts "[debug] Fetching index: #{plural} #{i} of #{max}"
-      url  = "https://www.petrescue.com.au/listings/#{species}?page=#{i}"
-      page = get(url, cache: cache_index?)
-      extract_listings(page, singular)
-    }.flatten
+    animals = build_animal_index(:species => species)
   }.flatten
 end
 
