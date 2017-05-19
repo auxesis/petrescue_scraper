@@ -211,9 +211,9 @@ def fetch_details(a)
       'vaccinated'   => bool(page.search('dl.pets-details dd.vaccinated').text),
       'wormed'       => bool(page.search('dl.pets-details dd.wormed').text),
       'heart_worm_treated' => bool(page.search('dl.pets-details dd.heart_worm_treated').text),
-      'fostered_by'  => extract_listing_details(page, /rescue group/i) {|el| text.search('a').first['href'][/(\d+)/, 1].to_i }
+      'fostered_by'  => extract_listing_details(page, /rescue group/i) {|el| text.search('a').first['href'][/(\d+)/, 1].to_i },
       'description'  => ReverseMarkdown.convert(page.search('div.personality').to_s),
-      'state'        => extract_listing_details(page, /location/i) {|el| el.text }
+      'state'        => extract_listing_details(page, /location/i) {|el| el.text },
       'interstate'   => (!!(page.search('h5.interstate').text =~ /^Not available/)).to_s,
       'last_updated' => page.search('p.last_updated_at time').first['datetime'],
       'images'       => extract_image_urls(page),
