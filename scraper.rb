@@ -211,8 +211,11 @@ def fetch_details(a)
     })
   else
     a.merge({
-      'status' => adoption_status(page),
-      'images' => extract_image_urls(page),
+      'status'       => adoption_status(page),
+      'fostered_by'  => page.search('dl.pets-details dd.fostered_by a').first['href'][/(\d+)/, 1].to_i,
+      'state'        => extract_state(page),
+      'images'       => extract_image_urls(page),
+      'last_updated' => page.search('p.last_updated_at time').first['datetime'],
     })
   end
 end
