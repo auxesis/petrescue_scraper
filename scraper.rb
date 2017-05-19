@@ -167,27 +167,15 @@ def adoption_status(page)
   end
 end
 
-def extract_state(page)
-  dt = page.search('dl.pet-listing__list.rescue-details').last.search('dt').find {|dt| dt.text =~ /location/i}
+def extract_listing_details(page, regex, &block)
+  dl = page.search('dl.pet-listing__list.rescue-details')
+  dt = dl.last.search('dt').find {|dt| dt.text =~ regex}
   if dt
     dd = dt.next
     until dd.name == 'dd'
       dd = dd.next
     end
-    dd.text
-  else
-    nil
-  end
-end
-
-def extract_rescue_group(page)
-  dt = page.search('dl.pet-listing__list.rescue-details').last.search('dt').find {|dt| dt.text =~ /rescue group/i}
-  if dt
-    dd = dt.next
-    until dd.name == 'dd'
-      dd = dd.next
-    end
-    dd.search('a').first['href'][/(\d+)/, 1].to_i
+    yield(dd)
   else
     nil
   end
@@ -214,9 +202,9 @@ def fetch_details(a)
       'vaccinated'   => bool(page.search('dl.pets-details dd.vaccinated').text),
       'wormed'       => bool(page.search('dl.pets-details dd.wormed').text),
       'heart_worm_treated' => bool(page.search('dl.pets-details dd.heart_worm_treated').text),
-      'fostered_by'  => extract_rescue_group(page),
+      'fostered_by'  => extract_listing_details(page, /rescue group/i) {|el| text.search('a').first['href'][/(\d+)/, 1].to_i }
       'description'  => ReverseMarkdown.convert(page.search('div.personality').to_s),
-      'state'        => extract_state(page),
+      'state'        => extract_listing_details(page, /location/i) {|el| el.text }
       'interstate'   => (!!(page.search('h5.interstate').text =~ /^Not available/)).to_s,
       'last_updated' => page.search('p.last_updated_at time').first['datetime'],
       'images'       => extract_image_urls(page),
@@ -253,8 +241,8 @@ end
 
 def main
   # Scrape the index, work out what the new records are.
-  puts "[info] There are #{existing_record_ids.size} existing animal records"
   new_animals = all_animals.select {|r| !existing_record_ids.include?(r['link'])}
+  puts "[info] There are #{existing_record_ids.size} existing animal records"
   puts "[info] There are #{new_animals.size} new animal records"
 
   # Work through 10 records at a time to get more details for each record.
