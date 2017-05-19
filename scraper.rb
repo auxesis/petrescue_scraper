@@ -180,6 +180,19 @@ def extract_state(page)
   end
 end
 
+def extract_rescue_group(page)
+  dt = page.search('dl.pet-listing__list.rescue-details').last.search('dt').find {|dt| dt.text =~ /rescue group/i}
+  if dt
+    dd = dt.next
+    until dd.name == 'dd'
+      dd = dd.next
+    end
+    dd.search('a').first['href'][/(\d+)/, 1].to_i
+  else
+    nil
+  end
+end
+
 def extract_image_urls(page)
   page.search('#thumbnails > li > a img').map {|img|
     img['src']
@@ -201,7 +214,7 @@ def fetch_details(a)
       'vaccinated'   => bool(page.search('dl.pets-details dd.vaccinated').text),
       'wormed'       => bool(page.search('dl.pets-details dd.wormed').text),
       'heart_worm_treated' => bool(page.search('dl.pets-details dd.heart_worm_treated').text),
-      'fostered_by'  => page.search('dl.pets-details dd.fostered_by a').first['href'][/(\d+)/, 1].to_i,
+      'fostered_by'  => extract_rescue_group(page),
       'description'  => ReverseMarkdown.convert(page.search('div.personality').to_s),
       'state'        => extract_state(page),
       'interstate'   => (!!(page.search('h5.interstate').text =~ /^Not available/)).to_s,
@@ -212,7 +225,7 @@ def fetch_details(a)
   else
     a.merge({
       'status'       => adoption_status(page),
-      'fostered_by'  => page.search('dl.pets-details dd.fostered_by a').first['href'][/(\d+)/, 1].to_i,
+      'fostered_by'  => extract_rescue_group(page),
       'state'        => extract_state(page),
       'images'       => extract_image_urls(page),
       'last_updated' => page.search('p.last_updated_at time').first['datetime'],
