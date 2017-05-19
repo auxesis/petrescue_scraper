@@ -167,6 +167,15 @@ def adoption_status(page)
   end
 end
 
+def save_and_open(page)
+  require 'launchy'
+  file = Tempfile.new
+  file << page
+  file.close
+
+  Launchy.open(file.path)
+end
+
 def extract_listing_details(page, regex, &block)
   dl = page.search('dl.pet-listing__list.rescue-details')
   dt = dl.last.search('dt').find {|dt| dt.text =~ regex}
