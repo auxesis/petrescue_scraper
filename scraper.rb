@@ -180,6 +180,14 @@ def extract_state(page)
   end
 end
 
+def extract_image_urls(page)
+  page.search('#thumbnails > li > a img').map {|img|
+    img['src']
+  }.map {|url|
+    url.gsub(/([wh])_\d+/, '\1_638')
+  }
+end
+
 def fetch_details(a)
   puts "[debug] Fetching page #{a['link']}"
   page = get(a['link'], cache: cache_details?)
@@ -196,22 +204,29 @@ def fetch_details(a)
       'fostered_by'  => page.search('dl.pets-details dd.fostered_by a').first['href'][/(\d+)/, 1].to_i,
       'description'  => ReverseMarkdown.convert(page.search('div.personality').to_s),
       'state'        => extract_state(page),
-      'interstate'   => !!(page.search('h5.interstate').text =~ /^Not available/),
+      'interstate'   => (!!(page.search('h5.interstate').text =~ /^Not available/)).to_s,
       'last_updated' => page.search('p.last_updated_at time').first['datetime'],
-      'images'       => page.search('#thumbnails > li > a img').map {|img| img['src']}.map {|url| url.gsub(/([wh])_\d+/, '\1_638')},
+      'images'       => extract_image_urls(page),
       'scraped_at'   => Time.now.iso8601,
     })
   else
-    { 'status' => adoption_status(page) }
+    a.merge({
+      'status' => adoption_status(page),
+      'images' => extract_image_urls(page),
+    })
   end
 end
 
 def save_images(animals)
   # Save any images that we've picked up by scraping animals
   images = animals.map { |a|
-    a.delete('images').map {|url|
-      { 'animal_id' => a['link'], 'link' => url }
-    }
+    if a['images']
+      a.delete('images').map {|url|
+        { 'animal_id' => a['link'], 'link' => url }
+      }
+    else
+      []
+    end
   }.flatten
 
   new_images = images.select {|r| !existing_record_ids('images').include?(r['link'])}
