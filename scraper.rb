@@ -159,25 +159,51 @@ def bool(text)
   (text =~ /yes/i ? true : false).to_s
 end
 
+def adoption_status(page)
+  if banner = page.search('div.status-banner').first
+    banner.text.strip.downcase
+  else
+    'available'
+  end
+end
+
+def extract_state(page)
+  dt = page.search('dl.pet-listing__list.rescue-details').last.search('dt').find {|dt| dt.text =~ /location/i}
+  if dt
+    dd = dt.next
+    until dd.name == 'dd'
+      dd = dd.next
+    end
+    dd.text
+  else
+    nil
+  end
+end
+
 def fetch_details(a)
   puts "[debug] Fetching page #{a['link']}"
   page = get(a['link'], cache: cache_details?)
-  a.merge({
-    'age'          => page.search('dl.pets-details dd.age').text,
-    'adoption_fee' => page.search('dl.pets-details dd.adoption_fee').text,
-    'desexed'      => bool(page.search('dl.pets-details dd.desexed').text),
-    'vaccinated'   => bool(page.search('dl.pets-details dd.vaccinated').text),
-    'wormed'       => bool(page.search('dl.pets-details dd.wormed').text),
-    'heart_worm_treated' => bool(page.search('dl.pets-details dd.heart_worm_treated').text),
-    'fostered_by'  => page.search('dl.pets-details dd.fostered_by a').first['href'][/(\d+)/, 1].to_i,
-    'description'  => ReverseMarkdown.convert(page.search('div.personality').to_s),
-    'state'        => page.search('h4.located_in').text[/^Located in (.+)/, 1],
-    'interstate'   => (!(page.search('h5.interstate').text =~ /^Not available/)).to_s,
-    'times_viewed' => page.search('p.view_count').text[/(\d+)/,1].to_i,
-    'last_updated' => page.search('p.last_updated_at time').first['datetime'],
-    'images'       => page.search('#thumbnails > li > a').map {|a| a['href']},
-    'scraped_at'   => Time.now.iso8601,
-  })
+
+  if adoption_status(page) == 'available'
+    a.merge({
+      'status'       => adoption_status(page),
+      'age'          => page.search('dl.pets-details dd.age').text,
+      'adoption_fee' => page.search('dl.pets-details dd.adoption_fee').text,
+      'desexed'      => bool(page.search('dl.pets-details dd.desexed').text),
+      'vaccinated'   => bool(page.search('dl.pets-details dd.vaccinated').text),
+      'wormed'       => bool(page.search('dl.pets-details dd.wormed').text),
+      'heart_worm_treated' => bool(page.search('dl.pets-details dd.heart_worm_treated').text),
+      'fostered_by'  => page.search('dl.pets-details dd.fostered_by a').first['href'][/(\d+)/, 1].to_i,
+      'description'  => ReverseMarkdown.convert(page.search('div.personality').to_s),
+      'state'        => extract_state(page),
+      'interstate'   => !!(page.search('h5.interstate').text =~ /^Not available/),
+      'last_updated' => page.search('p.last_updated_at time').first['datetime'],
+      'images'       => page.search('#thumbnails > li > a img').map {|img| img['src']}.map {|url| url.gsub(/([wh])_\d+/, '\1_638')},
+      'scraped_at'   => Time.now.iso8601,
+    })
+  else
+    { 'status' => adoption_status(page) }
+  end
 end
 
 def save_images(animals)
