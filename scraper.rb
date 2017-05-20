@@ -46,81 +46,6 @@ module PetRescue
   end
 end
 
-def bool(text)
-  (text =~ /yes/i ? true : false).to_s
-end
-
-def adoption_status(page)
-  if banner = page.search('div.status-banner').first
-    banner.text.strip.downcase
-  else
-    'available'
-  end
-end
-
-def save_and_open(page)
-  require 'launchy'
-  file = Tempfile.new
-  file << page
-  file.close
-
-  Launchy.open(file.path)
-end
-
-def extract_listing_details(page, regex, &block)
-  dl = page.search('dl.pet-listing__list.rescue-details')
-  dt = dl.last.search('dt').find {|dt| dt.text =~ regex}
-  if dt
-    dd = dt.next
-    until dd.name == 'dd'
-      dd = dd.next
-    end
-    yield(dd)
-  else
-    nil
-  end
-end
-
-def extract_image_urls(page)
-  page.search('#thumbnails > li > a img').map {|img|
-    img['src']
-  }.map {|url|
-    url.gsub(/([wh])_\d+/, '\1_638')
-  }
-end
-
-def fetch_details(a)
-  puts "[debug] Fetching page #{a['link']}"
-  page = get(a['link'], cache: cache_details?)
-
-  if adoption_status(page) == 'available'
-    a.merge({
-      'status'       => adoption_status(page),
-      'age'          => page.search('dl.pets-details dd.age').text,
-      'adoption_fee' => page.search('dl.pets-details dd.adoption_fee').text,
-      'desexed'      => bool(page.search('dl.pets-details dd.desexed').text),
-      'vaccinated'   => bool(page.search('dl.pets-details dd.vaccinated').text),
-      'wormed'       => bool(page.search('dl.pets-details dd.wormed').text),
-      'heart_worm_treated' => bool(page.search('dl.pets-details dd.heart_worm_treated').text),
-      'fostered_by'  => extract_listing_details(page, /rescue group/i) {|el| text.search('a').first['href'][/(\d+)/, 1].to_i },
-      'description'  => ReverseMarkdown.convert(page.search('div.personality').to_s),
-      'state'        => extract_listing_details(page, /location/i) {|el| el.text },
-      'interstate'   => (!!(page.search('h5.interstate').text =~ /^Not available/)).to_s,
-      'last_updated' => page.search('p.last_updated_at time').first['datetime'],
-      'images'       => extract_image_urls(page),
-      'scraped_at'   => Time.now.iso8601,
-    })
-  else
-    a.merge({
-      'status'       => adoption_status(page),
-      'fostered_by'  => extract_rescue_group(page),
-      'state'        => extract_state(page),
-      'images'       => extract_image_urls(page),
-      'last_updated' => page.search('p.last_updated_at time').first['datetime'],
-    })
-  end
-end
-
 def save_images(animals)
   # Save any images that we've picked up by scraping animals
   images = animals.map { |a|
@@ -288,6 +213,88 @@ module PetRescue
   end
 
   class Animal
+    include Fetcher
+
+    def initialize(attrs)
+      @attrs = attrs
+    end
+
+    def scrape_details
+      puts "[debug] Fetching page #{@attrs['link']}"
+      page = get(@attrs['link'], format: :html, cache: cache_details?)
+
+      if adoption_status(page) == 'available'
+        @attrs.merge!({
+          'status'       => adoption_status(page),
+          'age'          => page.search('dl.pets-details dd.age').text,
+          'adoption_fee' => page.search('dl.pets-details dd.adoption_fee').text,
+          'desexed'      => bool(page.search('dl.pets-details dd.desexed').text),
+          'vaccinated'   => bool(page.search('dl.pets-details dd.vaccinated').text),
+          'wormed'       => bool(page.search('dl.pets-details dd.wormed').text),
+          'heart_worm_treated' => bool(page.search('dl.pets-details dd.heart_worm_treated').text),
+          'fostered_by'  => extract_listing_details(page, /rescue group/i) {|el| el.search('a').first['href'][/(\d+)/, 1].to_i },
+          'description'  => ReverseMarkdown.convert(page.search('div.personality').to_s),
+          'state'        => extract_listing_details(page, /location/i) {|el| el.text },
+          'interstate'   => (!!(page.search('h5.interstate').text =~ /^Not available/)).to_s,
+          'last_updated' => page.search('p.last_updated_at time').first['datetime'],
+          'images'       => extract_image_urls(page),
+          'scraped_at'   => Time.now.iso8601,
+        })
+      else
+        @attrs.merge!({
+          'status'       => adoption_status(page),
+          'fostered_by'  => extract_rescue_group(page),
+          'state'        => extract_state(page),
+          'images'       => extract_image_urls(page),
+          'last_updated' => page.search('p.last_updated_at time').first['datetime'],
+        })
+      end
+    end
+
+    protected
+
+    def bool(text)
+      (text =~ /yes/i ? true : false).to_s
+    end
+
+    def adoption_status(page)
+      if banner = page.search('div.status-banner').first
+        banner.text.strip.downcase
+      else
+        'available'
+      end
+    end
+
+    def save_and_open(page)
+      require 'launchy'
+      file = Tempfile.new
+      file << page
+      file.close
+
+      Launchy.open(file.path)
+    end
+
+    def extract_listing_details(page, regex, &block)
+      dl = page.search('dl.pet-listing__list.rescue-details')
+      dt = dl.last.search('dt').find {|dt| dt.text =~ regex}
+      if dt
+        dd = dt.next
+        until dd.name == 'dd'
+          dd = dd.next
+        end
+        yield(dd)
+      else
+        nil
+      end
+    end
+
+    def extract_image_urls(page)
+      page.search('#thumbnails > li > a img').map {|img|
+        img['src']
+      }.map {|url|
+        url.gsub(/([wh])_\d+/, '\1_638')
+      }
+    end
   end
 end
 
