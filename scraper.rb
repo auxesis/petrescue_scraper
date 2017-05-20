@@ -65,14 +65,6 @@ def extract_listings(page, species)
   end
 end
 
-def species
-  if ENV['MORPH_SPECIES']
-    ENV['MORPH_SPECIES'].split(' ')
-  else
-    %w(dogs cats other)
-  end
-end
-
 def cache_index?
   if ENV['MORPH_CACHE_INDEX']
     ENV['MORPH_CACHE_INDEX'] =~ /true/i
@@ -94,54 +86,6 @@ module PetRescue
     include HTTParty
     base_uri 'www.petrescue.com.au'
   end
-end
-
-def build_animal_index(species: 'dog')
-  puts "[debug] Building index for #{species}"
-
-  plural   = ActiveSupport::Inflector.pluralize(species).capitalize
-  singular = ActiveSupport::Inflector.singularize(species).capitalize
-
-  base     = 'https://www.petrescue.com.au/listings/ryvuss_data'
-  per_page = 60
-  index    = 0
-  query    = {
-    'q'        => "Species.#{singular}.",
-    'skip'     => index,
-    'per_page' => per_page
-  }
-  url = Addressable::URI.parse(base)
-  url.query_values = query
-
-  response = HTTParty.get(url)
-  max = response['Count']
-
-  urls = index.step(max,per_page).to_a.map do |n|
-    url = Addressable::URI.parse(base)
-    url.query_values = {
-      'q'        => "Species.#{singular}.",
-      'skip'     => n,
-      'per_page' => per_page
-    }
-    url.to_s
-  end
-
-  data = urls.map { |url|
-    puts "[debug] Fetching index: #{url}"
-    HTTParty.get(url)['SearchResults'].map {|animal|
-      { 'link' => "http://www.petrescue.com.au/listings/#{animal['Id']}"}
-    }
-  }.flatten
-  data
-end
-
-def all_animals
-  return @animals if @animals
-
-  puts "[debug] Species to fetch: #{species.join(',')}"
-  @animals = species.map {|species|
-    animals = build_animal_index(:species => species)
-  }.flatten
 end
 
 def bool(text)
@@ -239,9 +183,11 @@ end
 
 module PetRescue
   class Scraped
-    def new_animals(new_animals)
-      []
+    def difference(other_animals)
+      other_animals.select {|r| !existing_record_ids.include?(r['link'])}
     end
+
+    alias_method :-, :difference
 
     def new_groups(new_groups)
       []
@@ -272,13 +218,67 @@ module PetRescue
   end
 
   class Index
-    def all_animals
-      []
+    def animals
+      return @animals if @animals
+
+      puts "[debug] Species to fetch: #{species.join(',')}"
+      @animals = species.map {|species|
+        build_animal_index(:species => species)
+      }.flatten
     end
 
-    def all_groups
+    def species
+      if ENV['MORPH_SPECIES']
+        ENV['MORPH_SPECIES'].split(' ')
+      else
+        %w(dogs cats other)
+      end
+    end
+
+    def build_animal_index(species:)
+      puts "[debug] Building index for #{species}"
+
+      plural   = ActiveSupport::Inflector.pluralize(species).capitalize
+      singular = ActiveSupport::Inflector.singularize(species).capitalize
+
+      base     = 'https://www.petrescue.com.au/listings/ryvuss_data'
+      per_page = 60
+      index    = 0
+      query    = {
+        'q'        => "Species.#{singular}.",
+        'skip'     => index,
+          'per_page' => per_page
+      }
+      url = Addressable::URI.parse(base)
+      url.query_values = query
+
+      response = HTTParty.get(url)
+      max = response['Count']
+
+      urls = index.step(max,per_page).to_a.map do |n|
+        url = Addressable::URI.parse(base)
+        url.query_values = {
+          'q'        => "Species.#{singular}.",
+          'skip'     => n,
+            'per_page' => per_page
+        }
+        url.to_s
+      end
+
+      urls.map { |url|
+        puts "[debug] Fetching index: #{url}"
+        HTTParty.get(url)['SearchResults'].map {|animal|
+          { 'link' => "http://www.petrescue.com.au/listings/#{animal['Id']}"}
+        }
+      }
+    end
+
+    def groups
       []
     end
+  end
+
+  class Animal
   end
 end
 
@@ -288,7 +288,8 @@ def main
   index = PetRescue::Index.new
 
   # Animals
-  new_animals = db.new_animals(index.all_animals)
+  new_animals = db - index.animals
+  #new_animals = db.difference(index.animals)
   puts "[info] Existing animal records: #{db.animals_count}"
   puts "[info] New animal records:      #{new_animals.size}"
 
@@ -306,7 +307,7 @@ def main
   end
 
   # Groups
-  new_groups = db.new_groups(index.all_groups)
+  new_groups = db.new_groups(index.groups)
   puts "[info] Existing group records: #{db.groups_count}"
   puts "[info] New group records:      #{new_groups.size}"
 
