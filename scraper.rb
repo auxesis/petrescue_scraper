@@ -39,13 +39,6 @@ def cache_details?
   end
 end
 
-module PetRescue
-  class Search
-    include HTTParty
-    base_uri 'www.petrescue.com.au'
-  end
-end
-
 def save_images(animals)
   # Save any images that we've picked up by scraping animals
   images = animals.map { |a|
