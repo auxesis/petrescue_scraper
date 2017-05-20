@@ -9,48 +9,6 @@ require 'addressable'
 require 'json'
 require 'httparty'
 
-def cache_path(url)
-  base = Pathname.new(__FILE__).parent.join('cache')
-  hash = Digest::MD5.hexdigest(url)
-  directory = base.join(hash[0])
-  directory.mkpath unless directory.directory?
-  directory.join(hash[1..-1])
-end
-
-def cache_store(url, content)
-  cache_path(url).open('w') {|f| f << content} unless cached?(url)
-  Nokogiri::HTML(content)
-end
-
-def cached?(url)
-  cache_path(url).exist?
-end
-
-def cache_fetch(url)
-  body = cache_path(url).read
-  Nokogiri::HTML(body)
-end
-
-def get(url, opts={})
-  options = {
-    :cache => true
-  }.merge!(opts)
-  @agent ||= Mechanize.new
-
-  case
-  # Cache bypass
-  when !options[:cache]
-    page = @agent.get(url)
-  # Cache hit
-  when cached?(url)
-    cache_fetch(url)
-  # Cache miss
-  else
-    page = @agent.get(url)
-    cache_store(url, page.body.to_s)
-  end
-end
-
 def extract_listings(page, species)
   page.search("li.#{species}-listing.listing").map do |listing|
     {
@@ -217,7 +175,58 @@ module PetRescue
     end
   end
 
+  module Fetcher
+    def get(url, cache: true, format: :html)
+      @agent ||= HTTParty
+
+      case
+      # Cache bypass
+      when !cache
+        response = @agent.get(url, format: format)
+      # Cache hit
+      when cached?(url)
+        response = cache_fetch(url)
+      # Cache miss
+      else
+        response = @agent.get(url, format: format)
+        response = cache_store(url, response.body.to_s)
+      end
+
+      case format
+      when :html
+        Nokogiri::HTML(response)
+      when :json
+        JSON.parse(response)
+      else
+        raise 'unsupported format'
+      end
+    end
+
+    def cache_path(url)
+      base = Pathname.new(__FILE__).parent.join('cache')
+      hash = Digest::MD5.hexdigest(url)
+      directory = base.join(hash[0])
+      directory.mkpath unless directory.directory?
+      directory.join(hash[1..-1])
+    end
+
+    def cache_store(url, content)
+      cache_path(url).open('w') {|f| f << content} unless cached?(url)
+      content
+    end
+
+    def cached?(url)
+      cache_path(url).exist?
+    end
+
+    def cache_fetch(url)
+      cache_path(url).read
+    end
+  end
+
   class Index
+    include Fetcher
+
     def animals
       return @animals if @animals
 
@@ -247,12 +256,12 @@ module PetRescue
       query    = {
         'q'        => "Species.#{singular}.",
         'skip'     => index,
-          'per_page' => per_page
+        'per_page' => per_page
       }
       url = Addressable::URI.parse(base)
       url.query_values = query
 
-      response = HTTParty.get(url)
+      response = get(url, :format => :json)
       max = response['Count']
 
       urls = index.step(max,per_page).to_a.map do |n|
@@ -260,14 +269,14 @@ module PetRescue
         url.query_values = {
           'q'        => "Species.#{singular}.",
           'skip'     => n,
-            'per_page' => per_page
+          'per_page' => per_page
         }
         url.to_s
       end
 
       urls.map { |url|
         puts "[debug] Fetching index: #{url}"
-        HTTParty.get(url)['SearchResults'].map {|animal|
+        get(url, :format => :json)['SearchResults'].map {|animal|
           { 'link' => "http://www.petrescue.com.au/listings/#{animal['Id']}"}
         }
       }
