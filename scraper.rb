@@ -144,17 +144,6 @@ def all_animals
   }.flatten
 end
 
-def existing_record_ids(table='data', id='link')
-  @cached ||= {}
-  if @cached[table]
-    return @cached[table]
-  else
-    @cached[table] = ScraperWiki.select("#{id} from #{table}").map {|r| r[id]}
-  end
-rescue SqliteMagic::NoSuchTable
-  []
-end
-
 def bool(text)
   (text =~ /yes/i ? true : false).to_s
 end
@@ -248,27 +237,83 @@ def save_images(animals)
   ScraperWiki.save_sqlite(%w(link), new_images, 'images')
 end
 
-def main
-  # Scrape the index, work out what the new records are.
-  new_animals = all_animals.select {|r| !existing_record_ids.include?(r['link'])}
-  puts "[info] There are #{existing_record_ids.size} existing animal records"
-  puts "[info] There are #{new_animals.size} new animal records"
-
-  # Work through 10 records at a time to get more details for each record.
-  # This allows the scraper to resume runs and save partial results.
-  new_animals.each_slice(10) do |slice|
-    # Add more attributes to any new records we've found.
-    new_animal_slice = slice.map {|a| fetch_details(a) }
-    # Extract images we've found when finding details for each record.
-    save_images(new_animal_slice)
-
-    # Then save the animals
-    puts "[info] Saving #{new_animal_slice.size} animal records"
-    begin
-      ScraperWiki.save_sqlite(%w(link), new_animal_slice)
-    rescue RuntimeError => e
-      binding.pry
+module PetRescue
+  class Scraped
+    def new_animals(new_animals)
+      []
     end
+
+    def new_groups(new_groups)
+      []
+    end
+
+    def animals_count
+      ScraperWiki.select('count(id) as count from data').first['count']
+    rescue SqliteMagic::NoSuchTable
+      0
+    end
+
+    def groups_count
+      ScraperWiki.select('count(id) as count from groups').first['count']
+    rescue SqliteMagic::NoSuchTable
+      0
+    end
+
+    def existing_record_ids(table='data', id='link')
+      @cached ||= {}
+      if @cached[table]
+        return @cached[table]
+      else
+        @cached[table] = ScraperWiki.select("#{id} from #{table}").map {|r| r[id]}
+      end
+    rescue SqliteMagic::NoSuchTable
+      []
+    end
+  end
+
+  class Index
+    def all_animals
+      []
+    end
+
+    def all_groups
+      []
+    end
+  end
+end
+
+
+def main
+  db = PetRescue::Scraped.new
+  index = PetRescue::Index.new
+
+  # Animals
+  new_animals = db.new_animals(index.all_animals)
+  puts "[info] Existing animal records: #{db.animals_count}"
+  puts "[info] New animal records:      #{new_animals.size}"
+
+  new_animals.each_slice(10) do |slice|
+    # Animals
+    animals = slice.map {|attrs| PetRescue::Animal.new(attrs) }
+    animals.each(&:scrape_details)
+    db.save_animals(animals)
+
+    # Images
+    images = animals.map {|animal| PetRescue::Image.new(animal) }.flatten
+    new_images = db.new_images(images)
+    puts "[info] New image records: #{new_images.size}"
+    db.save_images(images)
+  end
+
+  # Groups
+  new_groups = db.new_groups(index.all_groups)
+  puts "[info] Existing group records: #{db.groups_count}"
+  puts "[info] New group records:      #{new_groups.size}"
+
+  new_groups.each_slice(10) do |slice|
+    groups = slice.map {|attrs| PetRescue::Group.new(attrs) }
+    groups.each(&:scrape_details)
+    db.save_groups(groups)
   end
 end
 
