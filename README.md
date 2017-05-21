@@ -45,8 +45,8 @@ In an effort to minimise the number of requests to the PetRescue website, the sc
 
 You can control this behaviour by setting these environment variables:
 
- - `MORPH_CACHE_INDEX` controls if the index is read from cache. Default is `true`.
- - `MORPH_CACHE_DETAILS` controls if each listing is read from cache. Default is `true`.
+ - `MORPH_CACHE_INDEX` controls if the index is read from cache. Valid options are `true` (use cache), `false` (don't use cache), `refresh` (update previously cached responses). Default is `true`.
+ - `MORPH_CACHE_DETAILS` controls if each listing is read from cache. Valid options are `true` (use cache), `false` (don't use cache), `refresh` (update previously cached responses). Default is `true`.
 
 These settings are most useful when debugging or testing behaviour locally. For example, to use an index cache, but bypass the details cache:
 

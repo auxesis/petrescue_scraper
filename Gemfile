@@ -8,3 +8,7 @@ gem 'reverse_markdown'
 gem 'mechanize'
 gem 'addressable'
 gem 'httparty'
+
+group :development do
+  gem 'launchy'
+end
