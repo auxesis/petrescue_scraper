@@ -304,11 +304,11 @@ module PetRescue
       @attrs['status'] == 'available'
     end
 
-    def to_h
+    def to_hash
       @attrs
     end
 
-    alias_method :to_hash, :to_h
+    alias_method :to_h, :to_hash
 
     def images
       @attrs['images']
@@ -389,11 +389,11 @@ module PetRescue
       @attrs = { 'animal_id' => animal_id, 'link' => link }
     end
 
-    def to_h
+    def to_hash
       @attrs
     end
 
-    alias_method :to_hash, :to_h
+    alias_method :to_h, :to_hash
 
     def id
       @attrs['link']
