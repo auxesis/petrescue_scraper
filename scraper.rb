@@ -46,7 +46,7 @@ module PetRescue
     include Log
 
     def new_animals(other_animals)
-      other_animals.select {|r| !existing_record_ids(table: 'data').include?(r['link'])}
+      other_animals.select {|r| !existing_record_ids(table: 'data').include?(r.id)}
     end
 
     def save_animals(animals)
@@ -235,8 +235,10 @@ module PetRescue
 
       urls.map { |url|
         log.debug("Fetching index: #{url}")
-        get(url, cache: cache_index?, :format => :json)['SearchResults'].map {|animal|
-          { 'link' => "http://www.petrescue.com.au/listings/#{animal['Id']}"}
+        results = get(url, cache: cache_index?, :format => :json)['SearchResults']
+        results.map {|animal|
+          attrs = { 'link' => "http://www.petrescue.com.au/listings/#{animal['Id']}"}
+          Animal.new(attrs)
         }
       }
     end
@@ -523,7 +525,6 @@ def main
 
   new_animals.each_slice(10) do |slice|
     # Animals
-    animals = slice.map {|attrs| PetRescue::Animal.new(attrs) }
     animals.each(&:scrape_details)
     db.save_animals(animals)
 
@@ -549,7 +550,6 @@ end
 main
 
 # TODO(auxesis): move to separate files
-# TODO(auxesis): create animal objects like images + groups during indexing
 # TODO(auxesis): rename data table to animals
 # TODO(auxesis): rename fostered_by column to group_id
 # TODO(auxesis): backfill microchip numbers
