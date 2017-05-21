@@ -53,11 +53,9 @@ module PetRescue
   class Scraped
     include Log
 
-    def difference(other_animals)
-      other_animals.select {|r| !existing_record_ids.include?(r['link'])}
+    def new_animals(other_animals)
+      other_animals.select {|r| !existing_record_ids('data').include?(r['link'])}
     end
-
-    alias_method :-, :difference
 
     def save_animals(animals)
       records = animals.map(&:to_hash).map {|a| a.reject {|k,v| k == 'images'}}
@@ -363,8 +361,7 @@ def main
   index = PetRescue::Index.new
 
   # Animals
-  new_animals = db - index.animals
-  #new_animals = db.difference(index.animals)
+  new_animals = db.new_animals(index.animals)
   log.info("Existing animal records: #{db.animals_count}")
   log.info("New animal records:      #{new_animals.size}")
 
