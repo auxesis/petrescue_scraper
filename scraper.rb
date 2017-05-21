@@ -8,6 +8,7 @@ require 'time'
 require 'addressable'
 require 'json'
 require 'httparty'
+require 'logger'
 
 def cache_index?
   if ENV['MORPH_CACHE_INDEX']
@@ -18,7 +19,40 @@ def cache_index?
 end
 
 module PetRescue
+  module Log
+    LOGGER = Logger.new(STDOUT)
+
+    def log_level
+      if ENV['MORPH_LOG_LEVEL']
+        begin
+          ('Logger::' + ENV['MORPH_LOG_LEVEL'].upcase).constantize
+        rescue NameError
+          puts 'FATAL: Log level must be one of ' +
+            Logger::Severity.constants.join(', ')
+          exit(1)
+        end
+      else
+        Logger::DEBUG
+      end
+    end
+
+    def setup_logger
+      @logger = LOGGER
+      @logger.level = log_level
+      @logger.formatter = proc do |severity, datetime, progname, msg|
+        "#{datetime}: [#{severity}] #{msg}\n"
+      end
+    end
+
+    def log
+      setup_logger unless @logger
+      @logger
+    end
+  end
+
   class Scraped
+    include Log
+
     def difference(other_animals)
       other_animals.select {|r| !existing_record_ids.include?(r['link'])}
     end
@@ -27,7 +61,7 @@ module PetRescue
 
     def save_animals(animals)
       records = animals.map(&:to_hash).map {|a| a.reject {|k,v| k == 'images'}}
-      puts "[info] New animal records: #{records.size}"
+      log.info("Saving #{records.size} animal records")
       ScraperWiki.save_sqlite(%w(link), records, 'data')
     end
 
@@ -37,7 +71,7 @@ module PetRescue
 
     def save_images(images)
       records = images.map(&:to_hash)
-      puts "[info] New image records: #{records.size}"
+      log.info("Saving #{records.size} image records")
       ScraperWiki.save_sqlite(%w(link), records, 'images')
     end
 
@@ -69,18 +103,8 @@ module PetRescue
     end
   end
 
-  module Logger
-    def debug(msg)
-      puts "[debug] #{msg}"
-    end
-
-    def info(msg)
-      puts "[info] #{msg}"
-    end
-  end
-
   module Fetcher
-    include Logger
+    include Log
 
     def get(url, cache: true, format: :html)
       @agent ||= HTTParty
@@ -88,15 +112,15 @@ module PetRescue
       case
       # Cache bypass
       when !cache
-        debug("Cache bypass: #{url}")
+        log.debug("Cache bypass: #{url}")
         response = @agent.get(url, format: format)
       # Cache hit
       when cached?(url)
-        debug("Cache hit: #{url}")
+        log.debug("Cache hit: #{url}")
         response = cache_fetch(url)
       # Cache miss
       else
-        debug("Cache miss: #{url}")
+        log.debug("Cache miss: #{url}")
         response = @agent.get(url, format: format)
         response = cache_store(url, response.body.to_s)
       end
@@ -134,12 +158,13 @@ module PetRescue
   end
 
   class Index
+    include Log
     include Fetcher
 
     def animals
       return @animals if @animals
 
-      puts "[debug] Species to fetch: #{species.join(',')}"
+      log.debug("Species to fetch: #{species.join(',')}")
       @animals = species.map {|species|
         build_animal_index(:species => species)
       }.flatten
@@ -154,7 +179,7 @@ module PetRescue
     end
 
     def build_animal_index(species:)
-      puts "[debug] Building index for #{species}"
+      log.debug("Building index for #{species}")
 
       plural   = ActiveSupport::Inflector.pluralize(species).capitalize
       singular = ActiveSupport::Inflector.singularize(species).capitalize
@@ -184,7 +209,7 @@ module PetRescue
       end
 
       urls.map { |url|
-        puts "[debug] Fetching index: #{url}"
+        log.debug("Fetching index: #{url}")
         get(url, :format => :json)['SearchResults'].map {|animal|
           { 'link' => "http://www.petrescue.com.au/listings/#{animal['Id']}"}
         }
@@ -197,6 +222,7 @@ module PetRescue
   end
 
   class Animal
+    include Log
     include Fetcher
 
     def initialize(attrs)
@@ -204,7 +230,7 @@ module PetRescue
     end
 
     def scrape_details
-      puts "[debug] Fetching page #{@attrs['link']}"
+      log.debug("Fetching page #{@attrs['link']}")
       page = get(@attrs['link'], format: :html, cache: cache_details?)
 
       # Attributes across all, regardless of adoption status
@@ -331,14 +357,16 @@ end
 
 
 def main
+  include PetRescue::Log
+
   db = PetRescue::Scraped.new
   index = PetRescue::Index.new
 
   # Animals
   new_animals = db - index.animals
   #new_animals = db.difference(index.animals)
-  puts "[info] Existing animal records: #{db.animals_count}"
-  puts "[info] New animal records:      #{new_animals.size}"
+  log.info("Existing animal records: #{db.animals_count}")
+  log.info("New animal records:      #{new_animals.size}")
 
   new_animals.each_slice(10) do |slice|
     # Animals
@@ -354,8 +382,8 @@ def main
 
   # Groups
   new_groups = db.new_groups(index.groups)
-  puts "[info] Existing group records: #{db.groups_count}"
-  puts "[info] New group records:      #{new_groups.size}"
+  log.info("Existing group records: #{db.groups_count}")
+  log.info("New group records:      #{new_groups.size}")
 
   new_groups.each_slice(10) do |slice|
     groups = slice.map {|attrs| PetRescue::Group.new(attrs) }
