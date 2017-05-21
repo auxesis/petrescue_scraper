@@ -49,24 +49,24 @@ module PetRescue
       other_animals.select {|r| !existing_record_ids(table: 'data').include?(r.id)}
     end
 
+    def new_images(other_images)
+      other_images.select {|r| !existing_record_ids(table: 'images').include?(r.id)}
+    end
+
+    def new_groups(other_groups)
+      other_groups.select {|r| !existing_record_ids(table: 'groups').include?(r.id)}
+    end
+
     def save_animals(animals)
       records = animals.map(&:to_hash).map {|a| a.reject {|k,v| k == 'images'}}
       log.info("Saving #{records.size} animal records")
       ScraperWiki.save_sqlite(%w(link), records, 'data')
     end
 
-    def new_images(other_images)
-      other_images.select {|r| !existing_record_ids(table: 'images').include?(r.id)}
-    end
-
     def save_images(images)
       records = images.map(&:to_hash)
       log.info("Saving #{records.size} image records")
       ScraperWiki.save_sqlite(%w(link), records, 'images')
-    end
-
-    def new_groups(other_groups)
-      other_groups.select {|r| !existing_record_ids(table: 'groups').include?(r.id)}
     end
 
     def save_groups(groups)
