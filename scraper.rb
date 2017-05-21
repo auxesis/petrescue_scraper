@@ -560,7 +560,6 @@ end
 main
 
 # TODO(auxesis): move to separate files
-# TODO(auxesis): rename data table to animals
 # TODO(auxesis): rename fostered_by column to group_id
 # TODO(auxesis): backfill microchip numbers
 # TODO(auxesis): identify animal data that is not being scraped
