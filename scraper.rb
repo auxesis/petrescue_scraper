@@ -581,3 +581,4 @@ main
 # TODO(auxesis): backfill microchip numbers
 # TODO(auxesis): identify animal data that is not being scraped
 # TODO(auxesis): add rubocop, and build with travis
+# TODO(auxesis): also scrape address from groups if they have it
