@@ -46,7 +46,7 @@ module PetRescue
     include Log
 
     def new_animals(other_animals)
-      other_animals.select {|r| !existing_record_ids(table: 'data').include?(r.id)}
+      other_animals.select {|r| !existing_record_ids(table: 'animals').include?(r.id)}
     end
 
     def new_images(other_images)
@@ -60,7 +60,7 @@ module PetRescue
     def save_animals(animals)
       records = animals.map(&:to_hash).map {|a| a.reject {|k,v| k == 'images'}}
       log.info("Saving #{records.size} animal records")
-      ScraperWiki.save_sqlite(%w(link), records, 'data')
+      ScraperWiki.save_sqlite(%w(link), records, 'animals')
     end
 
     def save_images(images)
@@ -76,7 +76,7 @@ module PetRescue
     end
 
     def animals_count
-      ScraperWiki.select('count(link) as count from data').first['count']
+      ScraperWiki.select('count(link) as count from animals').first['count']
     rescue SqliteMagic::NoSuchTable
       0
     end
@@ -93,7 +93,7 @@ module PetRescue
       0
     end
 
-    def existing_record_ids(table: 'data', id: 'link')
+    def existing_record_ids(table: 'animals', id: 'link')
       @cached ||= {}
       if @cached[table]
         return @cached[table]
@@ -104,8 +104,16 @@ module PetRescue
       []
     end
 
+    def upgrade_tables
+      results = ScraperWiki.sqliteexecute(%(SELECT name FROM sqlite_master WHERE type='table' AND name='data';))
+      unless results.empty?
+        log.info("Renaming table `data` to `animals`")
+        ScraperWiki.sqliteexecute('ALTER TABLE data RENAME TO animals')
+      end
+    end
+
     def backfill_data
-      records = ScraperWiki.sqliteexecute("SELECT link,fostered_by FROM data WHERE fostered_by NOT LIKE 'http%'")
+      records = ScraperWiki.sqliteexecute("SELECT link,fostered_by FROM animals WHERE fostered_by NOT LIKE 'http%'")
       log.info("Fixing #{records.size} animal records")
 
       updated_records = records.map {|record|
@@ -517,6 +525,8 @@ def main
 
   db = PetRescue::Scraped.new
   index = PetRescue::Index.new
+
+  db.upgrade_tables
 
   # Animals
   new_animals = db.new_animals(index.animals)
