@@ -46,7 +46,7 @@ module PetRescue
     include Log
 
     def new_animals(other_animals)
-      other_animals.select {|r| !existing_record_ids('data').include?(r['link'])}
+      other_animals.select {|r| !existing_record_ids(table: 'data').include?(r['link'])}
     end
 
     def save_animals(animals)
@@ -56,7 +56,7 @@ module PetRescue
     end
 
     def new_images(other_images)
-      other_images.select {|r| !existing_record_ids('images').include?(r.id)}
+      other_images.select {|r| !existing_record_ids(table: 'images').include?(r.id)}
     end
 
     def save_images(images)
@@ -66,7 +66,7 @@ module PetRescue
     end
 
     def new_groups(other_groups)
-      other_groups.select {|r| !existing_record_ids('groups').include?(r.id)}
+      other_groups.select {|r| !existing_record_ids(table: 'groups').include?(r.id)}
     end
 
     def save_groups(groups)
@@ -87,7 +87,7 @@ module PetRescue
       0
     end
 
-    def existing_record_ids(table='data', id='link')
+    def existing_record_ids(table: 'data', id: 'link')
       @cached ||= {}
       if @cached[table]
         return @cached[table]
