@@ -81,6 +81,12 @@ module PetRescue
       0
     end
 
+    def images_count
+      ScraperWiki.select('count(link) as count from images').first['count']
+    rescue SqliteMagic::NoSuchTable
+      0
+    end
+
     def groups_count
       ScraperWiki.select('count(link) as count from groups').first['count']
     rescue SqliteMagic::NoSuchTable
