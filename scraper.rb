@@ -106,6 +106,7 @@ module PetRescue
 
     def backfill_data
       records = ScraperWiki.sqliteexecute("SELECT link,fostered_by FROM data WHERE fostered_by NOT LIKE 'http%'")
+      log.info("Fixing #{records.size} animal records")
 
       updated_records = records.map {|record|
         record.merge({'fostered_by' => "https://www.petrescue.com.au/groups/#{record['fostered_by']}"})
