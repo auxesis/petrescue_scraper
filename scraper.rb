@@ -76,7 +76,7 @@ module PetRescue
     end
 
     def animals_count
-      ScraperWiki.select('count(id) as count from data').first['count']
+      ScraperWiki.select('count(link) as count from data').first['count']
     rescue SqliteMagic::NoSuchTable
       0
     end
