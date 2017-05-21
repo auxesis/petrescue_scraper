@@ -262,7 +262,17 @@ module PetRescue
         log.debug("Fetching index: #{url}")
         results = get(url, cache: cache_index?, :format => :json)['SearchResults']
         results.map {|animal|
-          attrs = { 'link' => base + '/listings/' + animal['Id'] }
+          attrs = {
+            'link' => base + '/listings/' + animal['Id'],
+            'name' => animal['Name'],
+            'type' => animal['Species'],
+            'size' => animal['Size'],
+            'breed' => animal['Breeds'].first,
+            'state' => animal['State'],
+            'gender' => animal['Gender'].downcase,
+            'postcode' => animal['Postcode'],
+            'date_of_birth' => animal['DateOfBirth'],
+          }
           Animal.new(attrs)
         }
       }
