@@ -130,11 +130,11 @@ module PetRescue
     end
 
     def backfill_data
-      records = ScraperWiki.sqliteexecute("SELECT link,fostered_by FROM animals WHERE fostered_by NOT LIKE 'http%'")
+      records = ScraperWiki.sqliteexecute("SELECT * FROM animals WHERE group_id NOT LIKE 'http%'")
       log.info("Fixing #{records.size} animal records")
 
       updated_records = records.map {|record|
-        record.merge({'fostered_by' => "https://www.petrescue.com.au/groups/#{record['fostered_by']}"})
+        record.merge({'group_id' => "https://www.petrescue.com.au/groups/#{record['group_id']}"})
       }
 
       save_animals(updated_records)
@@ -411,7 +411,7 @@ module PetRescue
       # Attributes across all, regardless of adoption status
       @attrs.merge!({
         'status'       => adoption_status(page),
-        'fostered_by'  => extract_listing_details(page, /rescue group/i) {|el| base + el.search('a').first['href'] },
+        'group_id'     => extract_listing_details(page, /rescue group/i) {|el| base + el.search('a').first['href'] },
         'state'        => extract_listing_details(page, /location/i) {|el| el.text },
         'images'       => extract_image_urls(page),
         'last_updated' => page.search('p.last_updated_at time').first['datetime'],
