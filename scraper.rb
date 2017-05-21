@@ -262,7 +262,7 @@ module PetRescue
         log.debug("Fetching index: #{url}")
         results = get(url, cache: cache_index?, :format => :json)['SearchResults']
         results.map {|animal|
-          attrs = { 'link' => "http://www.petrescue.com.au/listings/#{animal['Id']}"}
+          attrs = { 'link' => base + '/listings/' + animal['Id'] }
           Animal.new(attrs)
         }
       }
