@@ -10,14 +10,6 @@ require 'json'
 require 'httparty'
 require 'logger'
 
-def cache_index?
-  if ENV['MORPH_CACHE_INDEX']
-    ENV['MORPH_CACHE_INDEX'] =~ /true/i
-  else
-    true
-  end
-end
-
 module PetRescue
   module Log
     LOGGER = Logger.new(STDOUT)
@@ -112,6 +104,11 @@ module PetRescue
       when !cache
         log.debug("Cache bypass: #{url}")
         response = @agent.get(url, format: format)
+      # Cache bust
+      when cache == :bust
+        log.debug("Cache bust: #{url}")
+        response = @agent.get(url, format: format)
+        response = cache_store(url, response.body.to_s)
       # Cache hit
       when cached?(url)
         log.debug("Cache hit: #{url}")
@@ -127,7 +124,7 @@ module PetRescue
       when :html
         Nokogiri::HTML(response)
       when :json
-        JSON.parse(response)
+        response.is_a?(String) ? JSON.parse(response) : response
       else
         raise 'unsupported format'
       end
@@ -193,7 +190,7 @@ module PetRescue
       url = Addressable::URI.parse(base)
       url.query_values = query
 
-      response = get(url, :format => :json)
+      response = get(url, :cache => cache_index?, :format => :json)
       max = response['Count']
 
       urls = index.step(max,per_page).to_a.map do |n|
@@ -208,10 +205,24 @@ module PetRescue
 
       urls.map { |url|
         log.debug("Fetching index: #{url}")
-        get(url, :format => :json)['SearchResults'].map {|animal|
+        get(url, cache: cache_index?, :format => :json)['SearchResults'].map {|animal|
           { 'link' => "http://www.petrescue.com.au/listings/#{animal['Id']}"}
         }
       }
+    end
+
+    def cache_index?
+      value = ENV['MORPH_CACHE_INDEX']
+      case
+      when value =~ /true|yes|y/i
+        true
+      when value =~ /false|no|n/i
+        false
+      when value =~ /bust/i
+        :bust
+      else
+        true
+      end
     end
 
     def groups
@@ -279,8 +290,14 @@ module PetRescue
     protected
 
     def cache_details?
-      if ENV['MORPH_CACHE_DETAILS']
-        ENV['MORPH_CACHE_DETAILS'] =~ /true/i
+      value = ENV['MORPH_CACHE_DETAILS']
+      case
+      when value =~ /true|yes|y/i
+        true
+      when value =~ /false|no|n/i
+        false
+      when value =~ /bust/i
+        :bust
       else
         true
       end
