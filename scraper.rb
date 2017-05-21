@@ -103,6 +103,16 @@ module PetRescue
     rescue SqliteMagic::NoSuchTable
       []
     end
+
+    def backfill_data
+      records = ScraperWiki.sqliteexecute("SELECT link,fostered_by FROM data WHERE fostered_by NOT LIKE 'http%'")
+
+      updated_records = records.map {|record|
+        record.merge({'fostered_by' => "https://www.petrescue.com.au/groups/#{record['fostered_by']}"})
+      }
+
+      save_animals(updated_records)
+    end
   end
 
   module Fetcher
@@ -528,6 +538,8 @@ def main
     groups.each(&:scrape_details)
     db.save_groups(groups)
   end
+
+  db.backfill_data
 end
 
 main
