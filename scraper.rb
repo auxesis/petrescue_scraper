@@ -69,6 +69,12 @@ module PetRescue
       other_groups.select {|r| !existing_record_ids('groups').include?(r.id)}
     end
 
+    def save_groups(groups)
+      records = groups.map(&:to_hash)
+      log.info("Saving #{records.size} group records")
+      ScraperWiki.save_sqlite(%w(link), records, 'groups')
+    end
+
     def animals_count
       ScraperWiki.select('count(id) as count from data').first['count']
     rescue SqliteMagic::NoSuchTable
@@ -76,7 +82,7 @@ module PetRescue
     end
 
     def groups_count
-      ScraperWiki.select('count(id) as count from groups').first['count']
+      ScraperWiki.select('count(link) as count from groups').first['count']
     rescue SqliteMagic::NoSuchTable
       0
     end
