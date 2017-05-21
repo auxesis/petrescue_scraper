@@ -207,32 +207,35 @@ module PetRescue
       puts "[debug] Fetching page #{@attrs['link']}"
       page = get(@attrs['link'], format: :html, cache: cache_details?)
 
-      if adoption_status(page) == 'available'
+      # Attributes across all, regardless of adoption status
+      @attrs.merge!({
+        'status'       => adoption_status(page),
+        'fostered_by'  => extract_listing_details(page, /rescue group/i) {|el| el.search('a').first['href'][/(\d+)/, 1].to_i },
+        'state'        => extract_listing_details(page, /location/i) {|el| el.text },
+        'images'       => extract_image_urls(page),
+        'last_updated' => page.search('p.last_updated_at time').first['datetime'],
+        'scraped_at'   => Time.now.iso8601,
+      })
+
+      # Extra attributes displayed on animals available for adoption
+      if available?
         @attrs.merge!({
-          'status'       => adoption_status(page),
           'age'          => page.search('dl.pets-details dd.age').text,
           'adoption_fee' => page.search('dl.pets-details dd.adoption_fee').text,
           'desexed'      => bool(page.search('dl.pets-details dd.desexed').text),
           'vaccinated'   => bool(page.search('dl.pets-details dd.vaccinated').text),
           'wormed'       => bool(page.search('dl.pets-details dd.wormed').text),
           'heart_worm_treated' => bool(page.search('dl.pets-details dd.heart_worm_treated').text),
-          'fostered_by'  => extract_listing_details(page, /rescue group/i) {|el| el.search('a').first['href'][/(\d+)/, 1].to_i },
           'description'  => ReverseMarkdown.convert(page.search('div.personality').to_s),
-          'state'        => extract_listing_details(page, /location/i) {|el| el.text },
           'interstate'   => (!!(page.search('h5.interstate').text =~ /^Not available/)).to_s,
-          'last_updated' => page.search('p.last_updated_at time').first['datetime'],
-          'images'       => extract_image_urls(page),
-          'scraped_at'   => Time.now.iso8601,
-        })
-      else
-        @attrs.merge!({
-          'status'       => adoption_status(page),
-          'fostered_by'  => extract_rescue_group(page),
-          'state'        => extract_state(page),
-          'images'       => extract_image_urls(page),
-          'last_updated' => page.search('p.last_updated_at time').first['datetime'],
         })
       end
+
+      @attrs
+    end
+
+    def available?
+      @attrs['status'] == 'available'
     end
 
     def to_h
