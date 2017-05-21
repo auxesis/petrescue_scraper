@@ -116,6 +116,8 @@ module PetRescue
       # id => nil (animals)
       results = ScraperWiki.sqliteexecute(%(PRAGMA table_info('animals')))
       if results.find {|r| r['name'] == 'fostered_by'}
+        log.info("Renaming `fostered_by` column to `group_id` on `animals` table")
+        log.info("Removing `id` column from `animals` table")
         temporary_table_name = "animals_#{Time.now.to_i}"
         statements = [
           %(ALTER TABLE animals RENAME TO #{temporary_table_name};),
