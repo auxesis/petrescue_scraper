@@ -578,6 +578,6 @@ main
 
 # TODO(auxesis): move to separate files
 # TODO(auxesis): backfill microchip numbers
-# TODO(auxesis): identify animal data that is not being scraped
+# TODO(auxesis): identify animal data that is not being scraped (like microchip in dl > dt)
 # TODO(auxesis): add rubocop, and build with travis
 # TODO(auxesis): also scrape address from groups if they have it
