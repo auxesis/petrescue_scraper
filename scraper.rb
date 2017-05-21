@@ -156,6 +156,12 @@ module PetRescue
     include Log
     include Fetcher
 
+    attr_reader :base
+
+    def initialize
+      @base = 'https://www.petrescue.com.au'
+    end
+
     def animals
       return @animals if @animals
 
@@ -179,7 +185,8 @@ module PetRescue
       plural   = ActiveSupport::Inflector.pluralize(species).capitalize
       singular = ActiveSupport::Inflector.singularize(species).capitalize
 
-      base     = 'https://www.petrescue.com.au/listings/ryvuss_data'
+      path     = '/listings/ryvuss_data'
+      url      = base + path
       per_page = 60
       index    = 0
       query    = {
@@ -226,7 +233,31 @@ module PetRescue
     end
 
     def groups
-      []
+      path = '/rescue_directory'
+      url  = base + path
+
+      response = get(url, cache: cache_index?, :format => :html)
+      href     = response.search('nav.pagination span.last a').first['href']
+      max      = Addressable::URI.parse(href).query_values['page'].to_i
+
+      urls = 1.upto(max).to_a.map { |n|
+        url = Addressable::URI.parse(base + path)
+        url.query_values = { 'page' => n }
+        url.to_s
+      }
+
+      urls.map {|url|
+        log.debug("Fetching index: #{url}")
+        response = get(url, cache: cache_index?, :format => :html)
+        extract_groups_from_page(response)
+      }.flatten.uniq
+    end
+
+    def extract_groups_from_page(page)
+      links = page.search('div.search-listing-copy a.rescue-directory__group__name')
+      links.map {|link|
+        { 'name' => link.text.strip, 'link' => base + link['href'] }
+      }
     end
   end
 
