@@ -17,32 +17,6 @@ def cache_index?
   end
 end
 
-def cache_details?
-  if ENV['MORPH_CACHE_DETAILS']
-    ENV['MORPH_CACHE_DETAILS'] =~ /true/i
-  else
-    true
-  end
-end
-
-def save_images(animals)
-  # Save any images that we've picked up by scraping animals
-  images = animals.map { |a|
-    if a['images']
-      a.delete('images').map {|url|
-        { 'animal_id' => a['link'], 'link' => url }
-      }
-    else
-      []
-    end
-  }.flatten
-
-  new_images = images.select {|r| !existing_record_ids('images').include?(r['link'])}
-  puts "[info] There are #{new_images.size} new image records"
-  puts "[info] Saving #{new_images.size} image records"
-  ScraperWiki.save_sqlite(%w(link), new_images, 'images')
-end
-
 module PetRescue
   class Scraped
     def difference(other_animals)
@@ -50,6 +24,22 @@ module PetRescue
     end
 
     alias_method :-, :difference
+
+    def save_animals(animals)
+      records = animals.map(&:to_hash).map {|a| a.reject {|k,v| k == 'images'}}
+      puts "[info] New animal records: #{records.size}"
+      ScraperWiki.save_sqlite(%w(link), records, 'data')
+    end
+
+    def new_images(other_images)
+      other_images.select {|r| !existing_record_ids('images').include?(r.id)}
+    end
+
+    def save_images(images)
+      records = images.map(&:to_hash)
+      puts "[info] New image records: #{records.size}"
+      ScraperWiki.save_sqlite(%w(link), records, 'images')
+    end
 
     def new_groups(new_groups)
       []
@@ -230,7 +220,29 @@ module PetRescue
       end
     end
 
+    def to_h
+      @attrs
+    end
+
+    alias_method :to_hash, :to_h
+
+    def images
+      @attrs['images']
+    end
+
+    def id
+      @attrs['link']
+    end
+
     protected
+
+    def cache_details?
+      if ENV['MORPH_CACHE_DETAILS']
+        ENV['MORPH_CACHE_DETAILS'] =~ /true/i
+      else
+        true
+      end
+    end
 
     def bool(text)
       (text =~ /yes/i ? true : false).to_s
@@ -275,6 +287,28 @@ module PetRescue
       }
     end
   end
+
+  class Image
+    def self.generate(animal)
+      animal.images.map {|img|
+        self.new(animal_id: animal.id, link: img)
+      }.flatten
+    end
+
+    def initialize(animal_id:, link:)
+      @attrs = { 'animal_id' => animal_id, 'link' => link }
+    end
+
+    def to_h
+      @attrs
+    end
+
+    alias_method :to_hash, :to_h
+
+    def id
+      @attrs['link']
+    end
+  end
 end
 
 
@@ -295,10 +329,9 @@ def main
     db.save_animals(animals)
 
     # Images
-    images = animals.map {|animal| PetRescue::Image.new(animal) }.flatten
+    images = animals.map {|animal| PetRescue::Image.generate(animal)}.flatten
     new_images = db.new_images(images)
-    puts "[info] New image records: #{new_images.size}"
-    db.save_images(images)
+    db.save_images(new_images)
   end
 
   # Groups
