@@ -106,15 +106,15 @@ module PetRescue
       @agent ||= HTTParty
 
       case
+      # Cache refresh
+      when cache == :refresh
+        log.debug("Cache refresh: #{url}")
+        response = @agent.get(url, format: format)
+        response = cache_store(url, response.body.to_s)
       # Cache bypass
       when !cache
         log.debug("Cache bypass: #{url}")
         response = @agent.get(url, format: format)
-      # Cache bust
-      when cache == :bust
-        log.debug("Cache bust: #{url}")
-        response = @agent.get(url, format: format)
-        response = cache_store(url, response.body.to_s)
       # Cache hit
       when cached?(url)
         log.debug("Cache hit: #{url}")
@@ -227,12 +227,12 @@ module PetRescue
     def cache_index?
       value = ENV['MORPH_CACHE_INDEX']
       case
+      when value =~ /refresh/i
+        :refresh
       when value =~ /true|yes|y/i
         true
       when value =~ /false|no|n/i
         false
-      when value =~ /bust/i
-        :bust
       else
         true
       end
@@ -327,8 +327,8 @@ module PetRescue
         true
       when value =~ /false|no|n/i
         false
-      when value =~ /bust/i
-        :bust
+      when value =~ /refresh/i
+        :refresh
       else
         true
       end
@@ -415,8 +415,8 @@ module PetRescue
         true
       when value =~ /false|no|n/i
         false
-      when value =~ /bust/i
-        :bust
+      when value =~ /refresh/i
+        :refresh
       else
         true
       end
