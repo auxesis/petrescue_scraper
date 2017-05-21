@@ -256,8 +256,90 @@ module PetRescue
     def extract_groups_from_page(page)
       links = page.search('div.search-listing-copy a.rescue-directory__group__name')
       links.map {|link|
-        { 'name' => link.text.strip, 'link' => base + link['href'] }
+        attrs = { 'name' => link.text.strip, 'link' => base + link['href'] }
+        PetRescue::Group.new(attrs)
       }
+    end
+  end
+
+  class Group
+    include Log
+    include Fetcher
+
+    def initialize(attrs)
+      @attrs = attrs
+    end
+
+    def id
+      @attrs['link']
+    end
+
+    def to_hash
+      @attrs
+    end
+
+    alias_method :to_h, :to_hash
+
+    def scrape_details
+      log.debug("Fetching page #{@attrs['link']}")
+      page = get(@attrs['link'], format: :html, cache: cache_details?)
+
+      titles = page.search('h2.rescue-group__section-title')
+
+      @attrs.merge!({
+        'about'            => ReverseMarkdown.convert(titles.first.next.next),
+        'adoption_process' => ReverseMarkdown.convert(titles.last.next.next),
+        'states'           => page.search('p.rescue-group__header__active-in').text.strip[/.+:\s+(.+)/, 1],
+      })
+
+      page.search('div.rescue-group__social-contacts a').map {|a|
+        { a['class'] => a['href'] }
+      }.uniq.each {|hash|
+        @attrs.merge!(hash)
+      }
+
+      if page.search('dl.rescue-group__contact-details').size > 0
+        @attrs['contact_name'] = extract_group_details(page, /contact name:/i) {|dd| dd.text.strip }
+        @attrs['phone_number_1'] = extract_group_details(page, /Phone number(\s+1)*:/i) {|dd| dd.text.strip }
+        @attrs['phone_number_2'] = extract_group_details(page, /Phone number 2:/i) {|dd| dd.text.strip }
+        @attrs['phone_number_3'] = extract_group_details(page, /Phone number 3:/i) {|dd| dd.text.strip }
+
+        binding.pry unless page.search('dl.rescue-group__contact-details').first&.search('dt').map(&:text).reject {|r| r =~ /name|number/i}.empty?
+      end
+    end
+
+    def phone_number_1
+      @attrs['phone_number_1']
+    end
+
+    protected
+
+    def cache_details?
+      value = ENV['MORPH_CACHE_DETAILS']
+      case
+      when value =~ /true|yes|y/i
+        true
+      when value =~ /false|no|n/i
+        false
+      when value =~ /bust/i
+        :bust
+      else
+        true
+      end
+    end
+
+    def extract_group_details(page, regex, &block)
+      dl = page.search('dl.rescue-group__contact-details')
+      dt = dl.last.search('dt').find {|dt| dt.text =~ regex}
+      if dt
+        dd = dt.next
+        until dd.name == 'dd'
+          dd = dd.next
+        end
+        yield(dd)
+      else
+        nil
+      end
     end
   end
 
@@ -430,8 +512,7 @@ def main
   log.info("Existing group records: #{db.groups_count}")
   log.info("New group records:      #{new_groups.size}")
 
-  new_groups.each_slice(10) do |slice|
-    groups = slice.map {|attrs| PetRescue::Group.new(attrs) }
+  new_groups.each_slice(10) do |groups|
     groups.each(&:scrape_details)
     db.save_groups(groups)
   end
