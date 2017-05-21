@@ -200,14 +200,14 @@ module PetRescue
         'skip'     => index,
         'per_page' => per_page
       }
-      url = Addressable::URI.parse(base)
+      url = Addressable::URI.parse(url)
       url.query_values = query
 
       response = get(url, :cache => cache_index?, :format => :json)
       max = response['Count']
 
       urls = index.step(max,per_page).to_a.map do |n|
-        url = Addressable::URI.parse(base)
+        url = Addressable::URI.parse(base + path)
         url.query_values = {
           'q'        => "Species.#{singular}.",
           'skip'     => n,
