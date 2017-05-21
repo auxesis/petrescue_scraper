@@ -370,7 +370,10 @@ module PetRescue
     include Log
     include Fetcher
 
+    attr_reader :base
+
     def initialize(attrs)
+      @base  = 'https://www.petrescue.com.au'
       @attrs = attrs
     end
 
@@ -381,7 +384,7 @@ module PetRescue
       # Attributes across all, regardless of adoption status
       @attrs.merge!({
         'status'       => adoption_status(page),
-        'fostered_by'  => extract_listing_details(page, /rescue group/i) {|el| el.search('a').first['href'][/(\d+)/, 1].to_i },
+        'fostered_by'  => extract_listing_details(page, /rescue group/i) {|el| base + el.search('a').first['href'] },
         'state'        => extract_listing_details(page, /location/i) {|el| el.text },
         'images'       => extract_image_urls(page),
         'last_updated' => page.search('p.last_updated_at time').first['datetime'],
