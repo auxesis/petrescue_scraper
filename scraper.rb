@@ -9,20 +9,6 @@ require 'addressable'
 require 'json'
 require 'httparty'
 
-def extract_listings(page, species)
-  page.search("li.#{species}-listing.listing").map do |listing|
-    {
-      'name' => listing.search('h4').text.strip,
-      'description' => listing.search('div.personality').text,
-      'gender' => listing.search('dd.gender').first.text.downcase,
-      'breed' => listing.search('dd.breed').first.text,
-      'link' => 'https://www.petrescue.com.au' + listing.search('h4 a').first['href'],
-      'species' => species,
-      'id'   => listing.search('h4 a').first['href'][/(\d+)$/, 1]
-    }
-  end
-end
-
 def cache_index?
   if ENV['MORPH_CACHE_INDEX']
     ENV['MORPH_CACHE_INDEX'] =~ /true/i
