@@ -69,19 +69,34 @@ module PetRescue
     end
   end
 
+  module Logger
+    def debug(msg)
+      puts "[debug] #{msg}"
+    end
+
+    def info(msg)
+      puts "[info] #{msg}"
+    end
+  end
+
   module Fetcher
+    include Logger
+
     def get(url, cache: true, format: :html)
       @agent ||= HTTParty
 
       case
       # Cache bypass
       when !cache
+        debug("Cache bypass: #{url}")
         response = @agent.get(url, format: format)
       # Cache hit
       when cached?(url)
+        debug("Cache hit: #{url}")
         response = cache_fetch(url)
       # Cache miss
       else
+        debug("Cache miss: #{url}")
         response = @agent.get(url, format: format)
         response = cache_store(url, response.body.to_s)
       end
