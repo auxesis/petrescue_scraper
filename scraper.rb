@@ -65,8 +65,8 @@ module PetRescue
       ScraperWiki.save_sqlite(%w(link), records, 'images')
     end
 
-    def new_groups(new_groups)
-      []
+    def new_groups(other_groups)
+      other_groups.select {|r| !existing_record_ids('groups').include?(r.id)}
     end
 
     def animals_count
