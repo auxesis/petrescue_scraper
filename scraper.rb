@@ -523,7 +523,7 @@ def main
   log.info("Existing animal records: #{db.animals_count}")
   log.info("New animal records:      #{new_animals.size}")
 
-  new_animals.each_slice(10) do |slice|
+  new_animals.each_slice(10) do |animals|
     # Animals
     animals.each(&:scrape_details)
     db.save_animals(animals)
