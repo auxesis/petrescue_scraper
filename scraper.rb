@@ -528,7 +528,8 @@ def main
   db = PetRescue::Scraped.new
   index = PetRescue::Index.new
 
-  db.upgrade_tables
+  db.backfill_data
+  exit
 
   # Animals
   new_animals = db.new_animals(index.animals)
