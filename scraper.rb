@@ -104,31 +104,6 @@ module PetRescue
       []
     end
 
-    def upgrade_tables
-      # data => animals
-      results = ScraperWiki.sqliteexecute(%(SELECT name FROM sqlite_master WHERE type='table' AND name='data';))
-      unless results.empty?
-        log.info("Renaming table `data` to `animals`")
-        ScraperWiki.sqliteexecute('ALTER TABLE data RENAME TO animals')
-      end
-
-      # fostered_by => group_id (animals)
-      # id => nil (animals)
-      results = ScraperWiki.sqliteexecute(%(PRAGMA table_info('animals')))
-      if results.find {|r| r['name'] == 'fostered_by'}
-        log.info("Renaming `fostered_by` column to `group_id` on `animals` table")
-        log.info("Removing `id` column from `animals` table")
-        temporary_table_name = "animals_#{Time.now.to_i}"
-        statements = [
-          %(ALTER TABLE animals RENAME TO #{temporary_table_name};),
-          %(CREATE TABLE animals (name,description,gender,breed,link,type,age,adoption_fee,desexed,vaccinated,wormed,heart_worm_treated,group_id,state,interstate,times_viewed,last_updated, scraped_at, status, UNIQUE (link));),
-          %(INSERT INTO animals (name,description,gender,breed,link,type,age,adoption_fee,desexed,vaccinated,wormed,heart_worm_treated,group_id,state,interstate,times_viewed,last_updated, scraped_at, status) SELECT name,description,gender,breed,link,type,age,adoption_fee,desexed,vaccinated,wormed,heart_worm_treated,fostered_by,state,interstate,times_viewed,last_updated,scraped_at,status FROM #{temporary_table_name};),
-          %(DROP TABLE #{temporary_table_name};),
-        ]
-        statements.each {|statement| ScraperWiki.sqliteexecute(statement)}
-      end
-    end
-
     def backfill_data
       records = ScraperWiki.sqliteexecute("SELECT * FROM animals WHERE group_id NOT LIKE 'http%'")
       log.info("Fixing #{records.size} animal records")
