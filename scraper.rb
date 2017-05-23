@@ -126,7 +126,10 @@ module PetRescue
         scraped.merge(indexed.to_hash)
       }
       log.info("Fixing #{fixed_core_attributes.size} animal records with missing core attributes")
-      save_animals(fixed_core_attributes)
+      save_animals(fixed_core_attributes) # This creates a heap of new records
+
+      # Delete incorrect records
+      ScraperWiki.sqliteexecute("DELETE FROM animals WHERE link LIKE 'http://%'")
     end
   end
 
