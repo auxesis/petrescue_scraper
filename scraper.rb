@@ -103,34 +103,6 @@ module PetRescue
     rescue SqliteMagic::NoSuchTable
       []
     end
-
-    def backfill_data(all_animals:)
-      # Clean up previously misscraped data
-      ScraperWiki.sqliteexecute("DELETE FROM images WHERE link NOT LIKE 'https://%'")
-
-      # Fix incorrectly indexed animal records
-      records = ScraperWiki.sqliteexecute("SELECT * FROM animals WHERE link LIKE 'http://%'")
-      updated_records = records.map {|record|
-        record.merge({'link' => record['link'].gsub(/^http:/,'https:')})
-      }
-      log.info("Fixing #{updated_records.size} animal records with incorrect index")
-      save_animals(updated_records)
-
-      # Find and patch scraped records with missing core attributes
-      records = ScraperWiki.sqliteexecute("SELECT * FROM animals WHERE name IS NULL")
-      fixed_core_attributes = records.map {|record|
-        [ record, all_animals.find{|a| a.id == record['link']} ]
-      }.select {|scraped, indexed|
-        indexed
-      }.map {|scraped, indexed|
-        scraped.merge(indexed.to_hash)
-      }
-      log.info("Fixing #{fixed_core_attributes.size} animal records with missing core attributes")
-      save_animals(fixed_core_attributes) # This creates a heap of new records
-
-      # Delete incorrect records
-      ScraperWiki.sqliteexecute("DELETE FROM animals WHERE link LIKE 'http://%'")
-    end
   end
 
   module Fetcher
@@ -545,9 +517,6 @@ def main
   db = PetRescue::Scraped.new
   index = PetRescue::Index.new
 
-  db.backfill_data(all_animals: index.animals)
-  exit
-
   # Animals
   new_animals = db.new_animals(index.animals)
   log.info("Existing animal records: #{db.animals_count}")
@@ -573,8 +542,6 @@ def main
     groups.each(&:scrape_details)
     db.save_groups(groups)
   end
-
-  db.backfill_data
 end
 
 main
