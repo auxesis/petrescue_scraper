@@ -256,7 +256,7 @@ module PetRescue
             'name' => animal['Name'],
             'type' => animal['Species'],
             'size' => animal['Size'],
-            'breed' => animal['Breeds'].first,
+            'breed' => animal['Breeds']&.first,
             'state' => animal['State'],
             'gender' => animal['Gender'].downcase,
             'postcode' => animal['Postcode'],
