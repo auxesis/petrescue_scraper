@@ -28,9 +28,9 @@ You can use the `MORPH_SPECIES` environment variable to control what species are
 MORPH_SPECIES="dogs" bundle exec ruby scraper.rb
 ```
 
-Valid options are `dogs`, `cats`, `other`, or any combination thereof.
+Valid options are `dogs`, `cats`, `others`, or any combination thereof.
 
-The default species to scrape are `dogs cats other`.
+The default species to scrape are `dogs,cats,others`.
 
 ## The scraper aggressively caches to the filesystem
 

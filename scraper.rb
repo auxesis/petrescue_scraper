@@ -185,24 +185,27 @@ module PetRescue
 
     def species
       if ENV['MORPH_SPECIES']
-        ENV['MORPH_SPECIES'].split(' ')
+        ENV['MORPH_SPECIES'].split(',')
       else
-        %w(dogs cats other)
+        %w(dogs cats others)
       end
     end
 
     def build_animal_index(species:)
       log.debug("Building index for #{species}")
 
-      plural   = ActiveSupport::Inflector.pluralize(species).capitalize
-      singular = ActiveSupport::Inflector.singularize(species).capitalize
+      if %w(dogs cats).include?(species)
+        term = ActiveSupport::Inflector.singularize(species).capitalize
+      else
+        term = 'Other Pets'
+      end
 
       path     = '/listings/ryvuss_data'
       url      = base + path
       per_page = 60
       index    = 0
       query    = {
-        'q'        => "Species.#{singular}.",
+        'q'        => "Species.#{term}.",
         'skip'     => index,
         'per_page' => per_page
       }
@@ -215,7 +218,7 @@ module PetRescue
       urls = index.step(max,per_page).to_a.map do |n|
         url = Addressable::URI.parse(base + path)
         url.query_values = {
-          'q'        => "Species.#{singular}.",
+          'q'        => "Species.#{term}.",
           'skip'     => n,
           'per_page' => per_page
         }
