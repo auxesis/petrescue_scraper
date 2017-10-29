@@ -9,6 +9,8 @@ require 'addressable'
 require 'json'
 require 'httparty'
 require 'logger'
+require 'dotenv'
+Dotenv.load
 
 module PetRescue
   module Log

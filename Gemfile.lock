@@ -21,6 +21,7 @@ GEM
     coderay (1.1.0)
     domain_name (0.5.20161021)
       unf (>= 0.0.5, < 1.0.0)
+    dotenv (2.2.1)
     http-cookie (1.0.3)
       domain_name (~> 0.5)
     httparty (0.14.0)
@@ -76,6 +77,7 @@ PLATFORMS
 DEPENDENCIES
   activesupport
   addressable
+  dotenv
   httparty
   launchy
   mechanize
@@ -87,4 +89,4 @@ RUBY VERSION
    ruby 2.3.1p112
 
 BUNDLED WITH
-   1.14.6
+   1.16.0.pre.3
