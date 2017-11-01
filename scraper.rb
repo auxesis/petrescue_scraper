@@ -387,6 +387,8 @@ module PetRescue
       log.debug("Fetching page #{@attrs['link']}")
       page = get(@attrs['link'], format: :html, cache: cache_details?)
 
+      return if page.to_s[/Sorry the PetRescue ID/]
+
       # Attributes across all, regardless of adoption status
       @attrs.merge!({
         'status'       => adoption_status(page),
