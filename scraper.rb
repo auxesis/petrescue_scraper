@@ -496,6 +496,7 @@ module PetRescue
 
   class Image
     def self.generate(animal)
+      return [] unless animal.images
       animal.images.map {|img|
         self.new(animal_id: animal.id, link: img)
       }.flatten
